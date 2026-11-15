@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar — pre-token protocols, priced by their trading peers</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="kicker">TOKEN RADAR · <span id="model-version">radar-2</span></p>
+    <h1>Protocols that record no token, priced by the peers that do.</h1>
+    <p class="lede" id="headline">Loading the board…</p>
+    <p class="source-line" id="source-line"></p>
+  </div>
+</header>
+
+<main>
+  <section class="panel" id="model-panel">
+    <h2>How the model works</h2>
+    <p>
+      Every protocol on this board records no token: no market cap, no CoinGecko id, no symbol in the
+      snapshot. Its <strong>implied value</strong> is what the market would plausibly say it is worth if it
+      issued one today, and the model derives that from the snapshot's own figures — never from a
+      hand-picked list of names:
+    </p>
+    <p class="formula">implied&nbsp;=&nbsp;TVL&nbsp;×&nbsp;category multiple&nbsp;×&nbsp;momentum&nbsp;×&nbsp;maturity&nbsp;×&nbsp;breadth</p>
+    <ul class="model-points">
+      <li><strong>Category multiple — calibrated, not chosen.</strong> For each category, the model takes every
+        protocol in the same snapshot that <em>does</em> trade a token, computes its market cap over TVL, and uses
+        the median, shrunk toward the global median by sample size. A category with three wild observations
+        cannot shout down three hundred quiet ones — and a category with fewer than three comps of its own
+        is not trusted at all: the global median speaks for it.</li>
+      <li><strong>Momentum.</strong> The 7-day TVL change, passed through a tanh so one hot week bends the
+        value by at most the momentum weight instead of breaking it.</li>
+      <li><strong>Maturity.</strong> A saturating curve over the protocol's age: surviving longer counts,
+        with diminishing returns. Unknown ages are scored at a neutral 270 days.</li>
+      <li><strong>Breadth.</strong> A small premium per extra chain beyond the first, capped — distribution
+        is real, but it is not magic.</li>
+      <li><strong>Who is ranked.</strong> Every watchlist protocol (TVL at or above the snapshot's floor,
+        recording no token), plus every other rankable pre-token protocol in the snapshot. Versioned pools,
+        exchanges, bridges and wrapped or staked products of another protocol's asset are not ranked:
+        transit TVL and receipt TVL are not a protocol waiting on a launch of its own.</li>
+    </ul>
+    <h3>The calibration, from this snapshot's trading protocols</h3>
+    <div class="table-wrap">
+      <table id="calibration-table">
+        <thead><tr><th>Category</th><th class="num">Trading comps</th><th class="num">Median mcap / TVL</th><th class="num">Multiple used</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note" id="calibration-note"></p>
+  </section>
+
+  <section class="panel" id="sandbox-panel">
+    <h2>Model sandbox</h2>
+    <p>Move a weight and the board re-ranks in the page, with the same formulas the program ran.
+      The category multiples stay calibrated; the sandbox never edits the board that was handed in.</p>
+    <div class="sandbox-grid">
+      <label>Momentum weight <span id="sb-momentum-value"></span>
+        <input type="range" id="sb-momentum" min="0" max="0.6" step="0.05">
+      </label>
+      <label>Breadth per chain <span id="sb-breadth-value"></span>
+        <input type="range" id="sb-breadth" min="0" max="0.1" step="0.01">
+      </label>
+      <label>Maturity floor <span id="sb-maturity-value"></span>
+        <input type="range" id="sb-maturity" min="0.5" max="1" step="0.05">
+      </label>
+      <button type="button" id="sb-reset">Reset to the handed-in model</button>
+    </div>
+    <p class="note" id="sandbox-state"></p>
+  </section>
+
+  <section class="panel" id="board-panel">
+    <h2>The board</h2>
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search name or slug…" aria-label="Search">
+      <select id="f-category" aria-label="Category"><option value="">All categories</option></select>
+      <select id="f-chain" aria-label="Chain"><option value="">All chains</option></select>
+      <label class="check"><input type="checkbox" id="f-watch"> Watchlist only</label>
+      <select id="f-sort" aria-label="Sort">
+        <option value="rank">Sort: implied value</option>
+        <option value="tvl">Sort: TVL</option>
+        <option value="momentum">Sort: 7-day momentum</option>
+        <option value="age">Sort: age</option>
+      </select>
+      <span class="count" id="row-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="board-table">
+        <thead><tr>
+          <th class="num">#</th><th>Protocol</th><th>Category</th><th>Chains</th>
+          <th class="num">TVL</th><th class="num">7d</th><th class="num">Implied value</th><th class="num">Implied / TVL</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note">Select any row for its model breakdown and farm plan. “W” marks a watchlist protocol.</p>
+  </section>
+
+  <section class="panel" id="detail-panel" hidden>
+    <button type="button" id="detail-close">← Back to the board</button>
+    <h2 id="detail-name"></h2>
+    <p class="detail-meta" id="detail-meta"></p>
+    <div class="breakdown" id="detail-breakdown"></div>
+    <h3>Farm plan</h3>
+    <ol class="farm" id="detail-farm"></ol>
+  </section>
+
+  <section class="panel" id="live-panel">
+    <h2>The comps: protocols that already trade</h2>
+    <p>The calibration's raw material — the largest tokenized protocols in the snapshot, at the market's
+      own values. The board never ranks these; it learns from them.</p>
+    <div class="table-wrap">
+      <table id="live-table">
+        <thead><tr><th>Protocol</th><th>Category</th><th class="num">TVL</th><th class="num">Market cap</th><th class="num">Mcap / TVL</th><th class="num">7d</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer>
+    <p>Token Radar · model <span id="footer-model"></span> · Data: <span id="footer-source"></span>.
+      Implied values are a model's reading of one frozen snapshot, not a promise that any protocol
+      will issue a token or that it would trade at the implied figure. Farm plans are checklists,
+      not financial advice; capital in any protocol can be lost.</p>
+  </footer>
+</main>
+
+<script src="../data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
